@@ -35,6 +35,17 @@ class EasyParentChildsController < ApplicationController
     @query = build_easy_parent_child_query
     @issues = find_filtered_issues
     
+    # 各チケットの子チケット情報を事前に取得
+    @issues_with_children = {}
+    @issues.each do |issue|
+      begin
+        @issues_with_children[issue.id] = issue.children.to_a
+      rescue => e
+        Rails.logger.warn "Failed to get children for issue #{issue.id}: #{e.message}"
+        @issues_with_children[issue.id] = []
+      end
+    end
+    
     respond_to do |format|
       format.html { render :action => "show", :layout => !request.xhr? }
     end
@@ -127,7 +138,8 @@ class EasyParentChildsController < ApplicationController
     limit = params[:limit].present? ? params[:limit].to_i : 100
     issues = issues.limit(limit)
     
-    issues.includes(:status, :tracker, :assigned_to, :priority, :category, :fixed_version)
+    # 親子関係の情報を含めて取得
+    issues.includes(:status, :tracker, :assigned_to, :priority, :category, :fixed_version, :parent)
   end
 
   def apply_basic_filters(issues)

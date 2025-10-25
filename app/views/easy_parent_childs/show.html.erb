@@ -106,7 +106,9 @@
       <div id="issues-container">
         <% if @issues && @issues.any? %>
           <% @issues.each do |issue| %>
-            <div class="issue-item" 
+            <% children_list = @issues_with_children[issue.id] || [] %>
+            <% has_children = children_list.any? %>
+            <div class="issue-item <%= 'has-parent' if issue.parent.present? %><%= ' has-children' if has_children %><%= ' has-both-relations' if issue.parent.present? && has_children %>" 
                  data-issue-id="<%= issue.id %>" 
                  data-issue-subject="<%= h(issue.subject) %>"
                  draggable="true"
@@ -117,6 +119,39 @@
                 <span class="issue-subject"><%= h(issue.subject) %></span>
                 <span class="issue-status"><%= issue.status.name %></span>
               </div>
+              
+              <!-- 親子関係の状態表示 -->
+              <div class="parent-child-status">
+                <% if issue.parent.present? %>
+                  <div class="parent-info">
+                    <span class="status-icon">👆</span>
+                    <span class="status-text">親: #<%= issue.parent.id %> <%= h(issue.parent.subject) %></span>
+                  </div>
+                <% end %>
+                
+                <% if has_children %>
+                  <div class="children-info">
+                    <span class="status-icon">👇</span>
+                    <span class="status-text">子: <%= children_list.count %>件</span>
+                    <div class="children-list">
+                      <% children_list.first(3).each do |child| %>
+                        <span class="child-item">#<%= child.id %></span>
+                      <% end %>
+                      <% if children_list.count > 3 %>
+                        <span class="child-item">...</span>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+                
+                <% if issue.parent.blank? && !has_children %>
+                  <div class="no-relation-info">
+                    <span class="status-icon">🔗</span>
+                    <span class="status-text">関係なし</span>
+                  </div>
+                <% end %>
+              </div>
+              
               <div class="issue-children" data-parent-id="<%= issue.id %>">
                 <!-- 子チケットがここに表示される -->
               </div>
@@ -285,6 +320,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      margin-bottom: 8px;
     }
     
     .issue-id {
@@ -304,6 +340,76 @@
       border-radius: 12px;
       font-size: 12px;
       color: #495057;
+    }
+    
+    /* 親子関係の状態表示スタイル */
+    .parent-child-status {
+      margin-top: 8px;
+      padding: 8px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      border-left: 3px solid #6c757d;
+    }
+    
+    .parent-info,
+    .children-info,
+    .no-relation-info {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+    
+    .parent-info {
+      color: #28a745;
+    }
+    
+    .children-info {
+      color: #ffc107;
+    }
+    
+    .no-relation-info {
+      color: #6c757d;
+    }
+    
+    .status-icon {
+      font-size: 14px;
+    }
+    
+    .status-text {
+      font-weight: 500;
+    }
+    
+    .children-list {
+      margin-left: 20px;
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    
+    .child-item {
+      background-color: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-size: 10px;
+      color: #495057;
+    }
+    
+    /* 親チケットの特別なスタイル */
+    .issue-item.has-children {
+      border-left: 4px solid #28a745;
+    }
+    
+    /* 子チケットの特別なスタイル */
+    .issue-item.has-parent {
+      border-left: 4px solid #ffc107;
+    }
+    
+    /* 両方の関係を持つチケット */
+    .issue-item.has-both-relations {
+      border-left: 4px solid #6f42c1;
     }
     
     .parent-info {
@@ -605,6 +711,9 @@
               currentRelations[issueId].push(childId);
             }
           });
+          
+          // 状態表示を更新
+          updateIssueStatus(issueId, 'parent', 'add');
         }
       }
       
@@ -629,6 +738,9 @@
               }
             }
           });
+          
+          // 状態表示を更新
+          updateIssueStatus(issueId, 'child', 'add');
         }
       }
       
@@ -659,17 +771,82 @@
         return item;
       }
       
-      function removeIssueFromAllZones(issueId) {
-        $(`.issue-item-parent[data-issue-id="${issueId}"]`).remove();
-        $(`.issue-item-child[data-issue-id="${issueId}"]`).remove();
+      function updateIssueStatus(issueId, type, action) {
+        const issueItem = $(`.issue-item[data-issue-id="${issueId}"]`);
+        if (issueItem.length === 0) return;
         
-        // Remove from relations
-        Object.keys(currentRelations).forEach(parentId => {
-          currentRelations[parentId] = currentRelations[parentId].filter(childId => childId !== issueId);
-          if (currentRelations[parentId].length === 0) {
-            delete currentRelations[parentId];
+        // 既存の状態表示を更新
+        const statusDiv = issueItem.find('.parent-child-status');
+        
+        if (action === 'add') {
+          if (type === 'parent') {
+            // 親として追加された場合
+            issueItem.addClass('has-children');
+            
+            // 子チケットの状態表示を更新
+            const childItems = $('.child-issues .issue-item-child');
+            childItems.each(function() {
+              const childId = $(this).data('issue-id');
+              updateChildStatus(childId);
+            });
+          } else if (type === 'child') {
+            // 子として追加された場合
+            issueItem.addClass('has-parent');
+            updateChildStatus(issueId);
           }
-        });
+        } else if (action === 'remove') {
+          if (type === 'parent') {
+            issueItem.removeClass('has-children');
+            issueItem.removeClass('has-both-relations');
+          } else if (type === 'child') {
+            issueItem.removeClass('has-parent');
+            issueItem.removeClass('has-both-relations');
+            updateChildStatus(issueId);
+          }
+        }
+        
+        // 両方の関係を持つ場合のクラス更新
+        if (issueItem.hasClass('has-parent') && issueItem.hasClass('has-children')) {
+          issueItem.addClass('has-both-relations');
+        } else {
+          issueItem.removeClass('has-both-relations');
+        }
+      }
+      
+      function updateChildStatus(childId) {
+        const childItem = $(`.issue-item[data-issue-id="${childId}"]`);
+        if (childItem.length === 0) return;
+        
+        const parentIds = Object.keys(currentRelations).filter(parentId => 
+          currentRelations[parentId].includes(childId)
+        );
+        
+        const statusDiv = childItem.find('.parent-child-status');
+        const parentInfo = statusDiv.find('.parent-info');
+        
+        if (parentIds.length > 0) {
+          if (parentInfo.length === 0) {
+            statusDiv.prepend(`
+              <div class="parent-info">
+                <span class="status-icon">👆</span>
+                <span class="status-text">親: #${parentIds.join(', #')}</span>
+              </div>
+            `);
+          } else {
+            parentInfo.find('.status-text').text(`親: #${parentIds.join(', #')}`);
+          }
+          childItem.addClass('has-parent');
+        } else {
+          parentInfo.remove();
+          childItem.removeClass('has-parent');
+        }
+        
+        // 両方の関係を持つ場合のクラス更新
+        if (childItem.hasClass('has-parent') && childItem.hasClass('has-children')) {
+          childItem.addClass('has-both-relations');
+        } else {
+          childItem.removeClass('has-both-relations');
+        }
       }
       
       
@@ -786,8 +963,14 @@
               delete currentRelations[parentId];
             }
           });
+          
+          // 状態表示を更新
+          updateIssueStatus(issueId, 'child', 'remove');
         } else if (type === 'parent') {
           delete currentRelations[issueId];
+          
+          // 状態表示を更新
+          updateIssueStatus(issueId, 'parent', 'remove');
         }
         
         markAsChanged();
