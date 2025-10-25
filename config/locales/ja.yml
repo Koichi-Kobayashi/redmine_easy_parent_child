@@ -1,0 +1,26 @@
+ja:
+  label_easy_parent_child: 簡単親子設定
+  project_module_easy_parent_child: 簡単親子設定
+  text_easy_parent_child_instructions: チケットをドラッグして親子関係を簡単に設定できます。左側のチケットを右側の親または子のエリアにドラッグしてください。
+  text_unsaved_changes: 未保存の変更があります
+  text_no_issues: チケットがありません
+  label_parent_child_relations: 親子関係
+  label_parent_issues: 親チケット
+  label_child_issues: 子チケット
+  button_reset: リセット
+  
+  # フィルター関連の翻訳
+  label_filter_plural: フィルタ
+  field_status: ステータス
+  field_tracker: トラッカー
+  field_assigned_to: 担当者
+  field_priority: 優先度
+  field_subject: 題名
+  field_parent: 親チケット
+  label_all: すべて
+  label_search: 検索
+  label_with_parent: 親あり
+  label_without_parent: 親なし
+  label_limit: 表示件数
+  button_apply: 適用
+  button_clear: クリア

@@ -1,0 +1,821 @@
+<div class="contextual">
+  <button id="save-relations-btn" class="icon icon-save" disabled>
+    <%= l(:button_save) %>
+  </button>
+  <button id="reset-relations-btn" class="icon icon-reload">
+    <%= l(:button_reset) %>
+  </button>
+</div>
+
+<h2><%= @query.new_record? ? l(:label_easy_parent_child) : @query.name %></h2>
+<%= @query.persisted? && @query.description.present? ? content_tag('p', @query.description, class: 'subtitle') : '' %>
+
+<div id="easy-parent-child-container">
+  <!-- フィルターセクション -->
+  <div class="filters">
+    <%= form_tag({}, :method => :get, :id => 'filter-form') do %>
+      <fieldset class="filters">
+        <legend><%= l(:label_filter_plural) %></legend>
+        <div class="filters">
+          <div class="filter">
+            <label for="status_id"><%= l(:field_status) %>:</label>
+            <%= select_tag :status_id, 
+                options_from_collection_for_select(IssueStatus.all, :id, :name, params[:status_id]),
+                { :include_blank => l(:label_all), :id => 'status_id' } %>
+          </div>
+          
+          <div class="filter">
+            <label for="tracker_id"><%= l(:field_tracker) %>:</label>
+            <%= select_tag :tracker_id, 
+                options_from_collection_for_select(@project.trackers, :id, :name, params[:tracker_id]),
+                { :include_blank => l(:label_all), :id => 'tracker_id' } %>
+          </div>
+          
+          <div class="filter">
+            <label for="assigned_to_id"><%= l(:field_assigned_to) %>:</label>
+            <%= select_tag :assigned_to_id, 
+                options_from_collection_for_select(@project.assignable_users, :id, :name, params[:assigned_to_id]),
+                { :include_blank => l(:label_all), :id => 'assigned_to_id' } %>
+          </div>
+          
+          <div class="filter">
+            <label for="priority_id"><%= l(:field_priority) %>:</label>
+            <%= select_tag :priority_id, 
+                options_from_collection_for_select(IssuePriority.all, :id, :name, params[:priority_id]),
+                { :include_blank => l(:label_all), :id => 'priority_id' } %>
+          </div>
+          
+          <div class="filter">
+            <label for="subject"><%= l(:field_subject) %>:</label>
+            <%= text_field_tag :subject, params[:subject], 
+                { :placeholder => l(:label_search), :id => 'subject' } %>
+          </div>
+          
+          <div class="filter">
+            <label for="parent_filter">親チケット:</label>
+            <%= select_tag :parent_filter, 
+                options_for_select([
+                  ['すべて', ''],
+                  ['親あり', 'with_parent'],
+                  ['親なし', 'without_parent']
+                ], params[:parent_filter]),
+                { :id => 'parent_filter' } %>
+          </div>
+          
+          <div class="filter">
+            <label for="limit"><%= l(:label_limit) %>:</label>
+            <%= select_tag :limit, 
+                options_for_select([
+                  ['50', '50'],
+                  ['100', '100'],
+                  ['200', '200'],
+                  ['500', '500']
+                ], params[:limit] || '100'),
+                { :id => 'limit' } %>
+          </div>
+        </div>
+        
+        <div class="filter-actions">
+          <%= submit_tag l(:button_apply), :class => 'icon icon-checked' %>
+          <%= link_to l(:button_clear), { :project_id => @project }, :class => 'icon icon-reload' %>
+        </div>
+      </fieldset>
+    <% end %>
+  </div>
+
+  <div id="easy-parent-child-info">
+    <p class="info">
+      <%= l(:text_easy_parent_child_instructions) %>
+      <% if @issues %>
+        <span style="color: #666; font-size: 12px;">
+          （<%= @issues.count %>件のチケットを表示中）
+        </span>
+      <% end %>
+    </p>
+    <div id="relation-status" class="status-info">
+      <span id="unsaved-changes" style="display: none;">
+        <%= l(:text_unsaved_changes) %>
+      </span>
+    </div>
+  </div>
+
+  <div id="easy-parent-child-area" style="display: flex; flex-direction: row; gap: 20px; width: 100%;">
+    <div id="issues-list" class="issues-column" style="flex: 1; min-width: 300px; max-width: 50%;">
+      <h3><%= l(:label_issue_plural) %></h3>
+      <p class="drag-instruction">→ チケットをドラッグして右側のエリアに移動してください</p>
+      <div id="issues-container">
+        <% if @issues && @issues.any? %>
+          <% @issues.each do |issue| %>
+            <div class="issue-item" 
+                 data-issue-id="<%= issue.id %>" 
+                 data-issue-subject="<%= h(issue.subject) %>"
+                 draggable="true"
+                 title="ドラッグして親子関係を設定"
+                 style="cursor: move;">
+              <div class="issue-info">
+                <span class="issue-id">#<%= issue.id %></span>
+                <span class="issue-subject"><%= h(issue.subject) %></span>
+                <span class="issue-status"><%= issue.status.name %></span>
+              </div>
+              <div class="issue-children" data-parent-id="<%= issue.id %>">
+                <!-- 子チケットがここに表示される -->
+              </div>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="no-issues"><%= l(:text_no_issues) %></p>
+        <% end %>
+      </div>
+    </div>
+
+    <div id="relation-area" class="relation-column" style="flex: 1; min-width: 400px; max-width: 50%;">
+      <h3><%= l(:label_parent_child_relations) %></h3>
+      <p class="drop-instruction">↓ チケットをここにドロップして親子関係を設定</p>
+      <div id="relations-container">
+        <div class="drop-zone" id="parent-drop-zone" style="border: 3px dashed #007bff; background-color: #f8f9fa; min-height: 200px; padding: 20px; margin: 10px 0;">
+          <div class="drop-zone-label" style="font-weight: bold; text-align: center; font-size: 18px; background-color: #fff; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">
+            📋 <%= l(:label_parent_issues) %>
+          </div>
+          <div class="drop-zone-instruction" style="text-align: center; color: #6c757d; font-style: italic; margin-bottom: 15px; padding: 10px; background-color: #fff; border-radius: 4px; border: 1px solid #dee2e6; font-weight: bold;">
+            親チケットをここにドロップしてください
+          </div>
+          <div class="parent-issues">
+            <!-- 親チケットがここに表示される -->
+          </div>
+        </div>
+        
+        <div class="drop-zone" id="child-drop-zone" style="border: 3px dashed #ffc107; background-color: #fff3cd; min-height: 200px; padding: 20px; margin: 10px 0;">
+          <div class="drop-zone-label" style="font-weight: bold; text-align: center; font-size: 18px; background-color: #fff; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">
+            📝 <%= l(:label_child_issues) %>
+          </div>
+          <div class="drop-zone-instruction" style="text-align: center; color: #6c757d; font-style: italic; margin-bottom: 15px; padding: 10px; background-color: #fff; border-radius: 4px; border: 1px solid #dee2e6; font-weight: bold;">
+            子チケットをここにドロップしてください
+          </div>
+          <div class="child-issues">
+            <!-- 子チケットがここに表示される -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%= form_tag({}, :data => {:cm_url => issues_context_menu_path}) do -%>
+  <%= hidden_field_tag 'back_url', url_for(:params => request.query_parameters), :id => nil %>
+<% end %>
+
+<% content_for :sidebar do %>
+  <%= render :partial => 'issues/sidebar' %>
+<% end %>
+
+<% html_title(l(:label_easy_parent_child)) -%>
+
+<% content_for :header_tags do %>
+  <style>
+    /* Easy Parent Child Styles */
+    #easy-parent-child-container {
+      margin: 20px 0;
+      width: 100%;
+    }
+    
+    #easy-parent-child-container * {
+      box-sizing: border-box;
+    }
+    
+    #easy-parent-child-info {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+    }
+    
+    #easy-parent-child-info .info {
+      margin: 0 0 10px 0;
+      color: #666;
+    }
+    
+    .status-info {
+      font-size: 14px;
+    }
+    
+    #unsaved-changes {
+      color: #d63384;
+      font-weight: bold;
+    }
+    
+    #easy-parent-child-area {
+      display: flex !important;
+      flex-direction: row !important;
+      gap: 20px !important;
+      min-height: 500px;
+      width: 100% !important;
+      clear: both;
+    }
+    
+    .issues-column {
+      flex: 1 !important;
+      min-width: 300px;
+      max-width: 50%;
+      float: none !important;
+      display: block !important;
+    }
+    
+    .relation-column {
+      flex: 1 !important;
+      min-width: 400px;
+      max-width: 50%;
+      float: none !important;
+      display: block !important;
+    }
+    
+    .issues-column h3,
+    .relation-column h3 {
+      margin: 0 0 15px 0;
+      padding: 10px;
+      background-color: #e9ecef;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    
+    .drag-instruction,
+    .drop-instruction {
+      background-color: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      font-weight: bold;
+      text-align: center;
+    }
+    
+    #issues-container {
+      max-height: 600px;
+      overflow-y: auto;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 10px;
+    }
+    
+    .issue-item {
+      padding: 10px;
+      margin: 5px 0;
+      background-color: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      cursor: move;
+      transition: all 0.2s ease;
+      position: relative;
+      opacity: 1 !important;
+    }
+    
+    .issue-item:hover {
+      background-color: #f8f9fa;
+      border-color: #007bff;
+      transform: translateX(5px);
+    }
+    
+    .issue-item.dragging {
+      opacity: 1;
+      transform: rotate(1deg);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .issue-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .issue-id {
+      font-weight: bold;
+      color: #007bff;
+      min-width: 50px;
+    }
+    
+    .issue-subject {
+      flex: 1;
+      font-size: 14px;
+    }
+    
+    .issue-status {
+      padding: 2px 8px;
+      background-color: #e9ecef;
+      border-radius: 12px;
+      font-size: 12px;
+      color: #495057;
+    }
+    
+    .parent-info {
+      font-size: 11px;
+      color: #6c757d;
+      font-style: italic;
+      margin-top: 2px;
+    }
+    
+    .drop-zone {
+      min-height: 200px;
+      border: 3px dashed #007bff !important;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 10px 0;
+      transition: all 0.2s ease;
+      background-color: #f8f9fa !important;
+      position: relative;
+      display: block !important;
+    }
+    
+    .drop-zone.drag-over {
+      border-color: #28a745 !important;
+      background-color: #d4edda !important;
+      transform: scale(1.02);
+    }
+    
+    .drop-zone-label {
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #495057;
+      text-align: center;
+      font-size: 18px;
+      background-color: #fff;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+    }
+    
+    .drop-zone-instruction {
+      text-align: center;
+      color: #6c757d;
+      font-style: italic;
+      margin-bottom: 15px;
+      padding: 10px;
+      background-color: #fff;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+      font-weight: bold;
+    }
+    
+    .parent-issues,
+    .child-issues {
+      min-height: 150px;
+    }
+    
+    .issue-item-parent,
+    .issue-item-child {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      margin: 5px 0;
+      background-color: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+    
+    .issue-item-parent {
+      border-left: 4px solid #28a745;
+    }
+    
+    .issue-item-child {
+      border-left: 4px solid #ffc107;
+    }
+    
+    .remove-btn {
+      background: none;
+      border: none;
+      color: #dc3545;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0 5px;
+      line-height: 1;
+    }
+    
+    .remove-btn:hover {
+      color: #a71e2a;
+    }
+    
+    .alert {
+      padding: 10px 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+      border: 1px solid transparent;
+    }
+    
+    .alert-success {
+      color: #155724;
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+    }
+    
+    .alert-error {
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+    
+    .contextual button {
+      margin-left: 5px;
+    }
+    
+    .contextual button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    /* フィルターセクションのスタイル - Redmine標準に合わせる */
+    .filters {
+      margin-bottom: 20px;
+    }
+    
+    .filters fieldset {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 0;
+    }
+    
+    .filters legend {
+      font-weight: bold;
+      padding: 0 5px;
+    }
+    
+    .filters .filter {
+      display: inline-block;
+      margin-right: 15px;
+      margin-bottom: 10px;
+      vertical-align: top;
+    }
+    
+    .filters .filter label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    
+    .filters .filter select,
+    .filters .filter input[type="text"] {
+      width: 150px;
+    }
+    
+    .filter-actions {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    
+    .filter-actions input[type="submit"],
+    .filter-actions a {
+      margin-right: 10px;
+    }
+  </style>
+  
+  <script>
+    // Easy Parent Child functionality
+    function initializeEasyParentChild() {
+      console.log('Initializing Easy Parent Child...');
+      
+      let currentRelations = {};
+      let hasUnsavedChanges = false;
+      
+      // Check if jQuery is available
+      if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded');
+        return;
+      }
+      
+      // Initialize the drag and drop functionality
+      initializeDragAndDrop();
+      
+      // Load initial data
+      loadInitialData();
+      
+      // Setup save button
+      $('#save-relations-btn').on('click', saveRelations);
+      
+      // Setup reset button
+      $('#reset-relations-btn').on('click', resetRelations);
+      
+      function initializeDragAndDrop() {
+        console.log('Setting up drag and drop...');
+        
+        // Remove existing event handlers to avoid duplicates
+        $('.issue-item').off('dragstart dragend');
+        $('.drop-zone').off('dragover dragleave drop');
+        
+        // Make issue items draggable
+        $('.issue-item').each(function() {
+          console.log('Making issue item draggable:', $(this).data('issue-id'));
+          this.draggable = true;
+        });
+        
+        $('.issue-item').on('dragstart', function(e) {
+          console.log('Drag started for issue:', $(this).data('issue-id'));
+          const issueId = $(this).data('issue-id');
+          const issueSubject = $(this).data('issue-subject');
+          
+          e.originalEvent.dataTransfer.setData('text/plain', JSON.stringify({
+            issueId: issueId,
+            issueSubject: issueSubject,
+            type: 'issue'
+          }));
+          
+          $(this).addClass('dragging');
+        });
+        
+        $('.issue-item').on('dragend', function(e) {
+          console.log('Drag ended');
+          $(this).removeClass('dragging');
+        });
+        
+        // Setup drop zones
+        $('.drop-zone').each(function() {
+          console.log('Setting up drop zone:', $(this).attr('id'));
+        });
+        
+        $('.drop-zone').on('dragover', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          $(this).addClass('drag-over');
+          console.log('Drag over drop zone:', $(this).attr('id'));
+        });
+        
+        $('.drop-zone').on('dragleave', function(e) {
+          $(this).removeClass('drag-over');
+        });
+        
+        $('.drop-zone').on('drop', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          $(this).removeClass('drag-over');
+          
+          console.log('Drop event triggered on:', $(this).attr('id'));
+          
+          try {
+            const data = JSON.parse(e.originalEvent.dataTransfer.getData('text/plain'));
+            const dropZone = $(this);
+            
+            if (data.type === 'issue') {
+              handleIssueDrop(data, dropZone);
+            }
+          } catch (error) {
+            console.error('Error parsing drop data:', error);
+          }
+        });
+      }
+      
+      function handleIssueDrop(data, dropZone) {
+        const issueId = data.issueId;
+        const issueSubject = data.issueSubject;
+        const zoneType = dropZone.attr('id');
+        
+        console.log('Handling drop:', issueId, 'to', zoneType);
+        
+        // Remove from other zones first
+        removeIssueFromAllZones(issueId);
+        
+        // Add to new zone
+        if (zoneType === 'parent-drop-zone') {
+          addToParentZone(issueId, issueSubject);
+        } else if (zoneType === 'child-drop-zone') {
+          addToChildZone(issueId, issueSubject);
+        }
+        
+        markAsChanged();
+      }
+      
+      function addToParentZone(issueId, issueSubject) {
+        const parentZone = $('.parent-issues');
+        const existingItem = parentZone.find(`[data-issue-id="${issueId}"]`);
+        
+        if (existingItem.length === 0) {
+          const item = createIssueItem(issueId, issueSubject, 'parent');
+          parentZone.append(item);
+          
+          // Update relations
+          if (!currentRelations[issueId]) {
+            currentRelations[issueId] = [];
+          }
+          
+          // 新しい親チケットに既存の子チケットを関連付け
+          const childItems = $('.child-issues .issue-item-child');
+          childItems.each(function() {
+            const childId = $(this).data('issue-id');
+            if (childId && !currentRelations[issueId].includes(childId)) {
+              currentRelations[issueId].push(childId);
+            }
+          });
+        }
+      }
+      
+      function addToChildZone(issueId, issueSubject) {
+        const childZone = $('.child-issues');
+        const existingItem = childZone.find(`[data-issue-id="${issueId}"]`);
+        
+        if (existingItem.length === 0) {
+          const item = createIssueItem(issueId, issueSubject, 'child');
+          childZone.append(item);
+          
+          // 子チケットをすべての親チケットに関連付け
+          const parentItems = $('.parent-issues .issue-item-parent');
+          parentItems.each(function() {
+            const parentId = $(this).data('issue-id');
+            if (parentId) {
+              if (!currentRelations[parentId]) {
+                currentRelations[parentId] = [];
+              }
+              if (!currentRelations[parentId].includes(issueId)) {
+                currentRelations[parentId].push(issueId);
+              }
+            }
+          });
+        }
+      }
+      
+      function createIssueItem(issueId, issueSubject, type) {
+        let parentInfo = '';
+        if (type === 'child') {
+          const parentIds = Object.keys(currentRelations).filter(parentId => 
+            currentRelations[parentId].includes(issueId)
+          );
+          if (parentIds.length > 0) {
+            parentInfo = `<div class="parent-info">親: #${parentIds.join(', #')}</div>`;
+          }
+        }
+        
+        const item = $(`
+          <div class="issue-item-${type}" data-issue-id="${issueId}">
+            <div class="issue-info">
+              <span class="issue-id">#${issueId}</span>
+              <span class="issue-subject">${escapeHtml(issueSubject)}</span>
+              ${parentInfo}
+            </div>
+            <button class="remove-btn" onclick="removeIssueFromZone(${issueId}, '${type}')">
+              ×
+            </button>
+          </div>
+        `);
+        
+        return item;
+      }
+      
+      function removeIssueFromAllZones(issueId) {
+        $(`.issue-item-parent[data-issue-id="${issueId}"]`).remove();
+        $(`.issue-item-child[data-issue-id="${issueId}"]`).remove();
+        
+        // Remove from relations
+        Object.keys(currentRelations).forEach(parentId => {
+          currentRelations[parentId] = currentRelations[parentId].filter(childId => childId !== issueId);
+          if (currentRelations[parentId].length === 0) {
+            delete currentRelations[parentId];
+          }
+        });
+      }
+      
+      
+      function loadInitialData() {
+        if (easyParentChildData.relations) {
+          easyParentChildData.relations.forEach(relation => {
+            if (relation.children && relation.children.length > 0) {
+              currentRelations[relation.parent_id] = relation.children;
+              
+              // Add parent to parent zone
+              const parentIssue = easyParentChildData.issues.find(issue => issue.id === relation.parent_id);
+              if (parentIssue) {
+                addToParentZone(parentIssue.id, parentIssue.subject);
+              }
+              
+              // Add children to child zone
+              relation.children.forEach(childId => {
+                const childIssue = easyParentChildData.issues.find(issue => issue.id === childId);
+                if (childIssue) {
+                  addToChildZone(childIssue.id, childIssue.subject);
+                }
+              });
+            }
+          });
+        }
+      }
+      
+      function saveRelations() {
+        const saveBtn = $('#save-relations-btn');
+        const originalText = saveBtn.text();
+        
+        saveBtn.prop('disabled', true).text('保存中...');
+        
+        $.ajax({
+          url: easyParentChildData.updateUrl,
+          method: 'POST',
+          data: {
+            relations: currentRelations,
+            authenticity_token: $('meta[name="csrf-token"]').attr('content')
+          },
+          success: function(response) {
+            if (response.success) {
+              showMessage(response.message, 'success');
+              hasUnsavedChanges = false;
+              updateStatus();
+            } else {
+              showMessage(response.message, 'error');
+            }
+          },
+          error: function(xhr) {
+            const response = xhr.responseJSON || {};
+            showMessage(response.message || '保存中にエラーが発生しました', 'error');
+          },
+          complete: function() {
+            saveBtn.prop('disabled', false).text(originalText);
+          }
+        });
+      }
+      
+      function resetRelations() {
+        if (confirm('変更をリセットしますか？')) {
+          currentRelations = {};
+          $('.parent-issues').empty();
+          $('.child-issues').empty();
+          hasUnsavedChanges = false;
+          updateStatus();
+          loadInitialData();
+        }
+      }
+      
+      function markAsChanged() {
+        hasUnsavedChanges = true;
+        updateStatus();
+      }
+      
+      function updateStatus() {
+        const saveBtn = $('#save-relations-btn');
+        const unsavedSpan = $('#unsaved-changes');
+        
+        if (hasUnsavedChanges) {
+          saveBtn.prop('disabled', false);
+          unsavedSpan.show();
+        } else {
+          saveBtn.prop('disabled', true);
+          unsavedSpan.hide();
+        }
+      }
+      
+      function showMessage(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+        const messageDiv = $(`<div class="alert ${alertClass}">${message}</div>`);
+        
+        $('#easy-parent-child-info').prepend(messageDiv);
+        
+        setTimeout(() => {
+          messageDiv.fadeOut(() => messageDiv.remove());
+        }, 3000);
+      }
+      
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+      
+      // Global function for remove buttons
+      window.removeIssueFromZone = function(issueId, type) {
+        $(`.issue-item-${type}[data-issue-id="${issueId}"]`).remove();
+        
+        if (type === 'child') {
+          Object.keys(currentRelations).forEach(parentId => {
+            currentRelations[parentId] = currentRelations[parentId].filter(childId => childId !== issueId);
+            if (currentRelations[parentId].length === 0) {
+              delete currentRelations[parentId];
+            }
+          });
+        } else if (type === 'parent') {
+          delete currentRelations[issueId];
+        }
+        
+        markAsChanged();
+      };
+    }
+  </script>
+<% end %>
+
+<%= javascript_tag do %>
+  $(document).ready(function() {
+    // Wait for jQuery to be fully loaded
+    if (typeof initializeEasyParentChild === 'function') {
+      initializeEasyParentChild();
+    } else {
+      console.error('initializeEasyParentChild function not found');
+    }
+  });
+  
+  var easyParentChildData = {
+    issues: <%= raw (@issues || []).map { |issue| 
+      {
+        id: issue.id,
+        subject: issue.subject,
+        status: issue.status.name,
+        children: []
+      }
+    }.to_json %>,
+    relations: <%= raw [] %>,
+    updateUrl: '<%= url_for(:controller => 'easy_parent_childs', :action => 'update_relations', :project_id => @project) %>'
+  };
+<% end %>
