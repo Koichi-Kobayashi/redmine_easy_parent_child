@@ -167,7 +167,7 @@
       <h3><%= l(:label_parent_child_relations) %></h3>
       <p class="drop-instruction">↓ チケットをここにドロップして親子関係を設定</p>
       <div id="relations-container">
-        <div class="drop-zone" id="parent-drop-zone" style="border: 3px dashed #007bff; background-color: #f8f9fa; min-height: 200px; padding: 20px; margin: 10px 0;">
+        <div class="drop-zone" id="parent-drop-zone" style="border: 3px dashed #007bff; background-color: #f8f9fa; min-height: 100px; padding: 20px; margin: 10px 0;">
           <div class="drop-zone-label" style="font-weight: bold; text-align: center; font-size: 18px; background-color: #fff; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">
             📋 <%= l(:label_parent_issues) %>
           </div>
@@ -179,7 +179,7 @@
           </div>
         </div>
         
-        <div class="drop-zone" id="child-drop-zone" style="border: 3px dashed #ffc107; background-color: #fff3cd; min-height: 200px; padding: 20px; margin: 10px 0;">
+        <div class="drop-zone" id="child-drop-zone" style="border: 3px dashed #ffc107; background-color: #fff3cd; min-height: 300px; padding: 20px; margin: 10px 0;">
           <div class="drop-zone-label" style="font-weight: bold; text-align: center; font-size: 18px; background-color: #fff; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">
             📝 <%= l(:label_child_issues) %>
           </div>
@@ -431,6 +431,14 @@
       display: block !important;
     }
     
+    #parent-drop-zone {
+      min-height: 100px !important;
+    }
+    
+    #child-drop-zone {
+      min-height: 300px !important;
+    }
+    
     .drop-zone.drag-over {
       border-color: #28a745 !important;
       background-color: #d4edda !important;
@@ -461,9 +469,12 @@
       font-weight: bold;
     }
     
-    .parent-issues,
+    .parent-issues {
+      min-height: 50px;
+    }
+    
     .child-issues {
-      min-height: 150px;
+      min-height: 250px;
     }
     
     .issue-item-parent,
@@ -666,6 +677,25 @@
             }
           } catch (error) {
             console.error('Error parsing drop data:', error);
+          }
+        });
+      }
+      
+      function removeIssueFromAllZones(issueId) {
+        // Remove from parent zone
+        $(`.parent-issues .issue-item-parent[data-issue-id="${issueId}"]`).remove();
+        
+        // Remove from child zone
+        $(`.child-issues .issue-item-child[data-issue-id="${issueId}"]`).remove();
+        
+        // Remove from relations
+        delete currentRelations[issueId];
+        
+        // Remove child from all parent relations
+        Object.keys(currentRelations).forEach(parentId => {
+          currentRelations[parentId] = currentRelations[parentId].filter(childId => childId !== issueId);
+          if (currentRelations[parentId].length === 0) {
+            delete currentRelations[parentId];
           }
         });
       }
