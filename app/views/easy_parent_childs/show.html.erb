@@ -1,12 +1,3 @@
-<div class="contextual">
-  <button id="save-relations-btn" class="icon icon-save" disabled>
-    <%= l(:button_save) %>
-  </button>
-  <button id="reset-relations-btn" class="icon icon-reload">
-    <%= l(:button_reset) %>
-  </button>
-</div>
-
 <h2><%= @query.new_record? ? l(:label_easy_parent_child) : @query.name %></h2>
 <%= @query.persisted? && @query.description.present? ? content_tag('p', @query.description, class: 'subtitle') : '' %>
 
@@ -92,6 +83,14 @@
         </span>
       <% end %>
     </p>
+    <div class="relation-buttons" style="margin-top: 10px;">
+      <button id="save-relations-btn" class="icon icon-save" disabled>
+        <%= l(:button_save) %>
+      </button>
+      <button id="reset-relations-btn" class="icon icon-reload">
+        <%= l(:button_reset) %>
+      </button>
+    </div>
     <div id="relation-status" class="status-info">
       <span id="unsaved-changes" style="display: none;">
         <%= l(:text_unsaved_changes) %>
@@ -613,6 +612,9 @@
       // Setup reset button
       $('#reset-relations-btn').on('click', resetRelations);
       
+      // Initialize status
+      updateStatus();
+      
       function initializeDragAndDrop() {
         console.log('Setting up drag and drop...');
         
@@ -704,8 +706,6 @@
         const issueId = data.issueId;
         const issueSubject = data.issueSubject;
         const zoneType = dropZone.attr('id');
-        
-        console.log('Handling drop:', issueId, 'to', zoneType);
         
         // Remove from other zones first
         removeIssueFromAllZones(issueId);
@@ -902,6 +902,9 @@
             }
           });
         }
+        // 初期データ読み込み後、状態を更新（ただし、初期データなので変更フラグはfalseのまま）
+        hasUnsavedChanges = false;
+        updateStatus();
       }
       
       function saveRelations() {
