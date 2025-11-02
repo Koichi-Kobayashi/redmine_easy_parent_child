@@ -1,28 +1,36 @@
-# 簡単親子設定
+[English](README.md) | [日本語](README.ja.md)
 
-ドラッグ&ドロップでチケットの親子関係を簡単に設定できるRedmineプラグインです。
+# Easy Parent Child
 
-## 機能
+A Redmine plugin that allows you to easily set parent-child relationships between tickets using drag & drop.
 
-- ドラッグ&ドロップによる直感的な親子関係設定
-- 複数の親チケットと子チケットの管理
-- フィルター機能によるチケット絞り込み
-- 変更の保存・リセット機能
-- Redmine標準UIとの統一デザイン
+## Requirements
 
-## インストール
+- Redmine 4.0 or later
 
-1. プラグインディレクトリに配置
-2. Redmineを再起動
-3. プロジェクト設定で「簡単親子設定」モジュールを有効化
+## Features
 
-## 使用方法
+- Intuitive parent-child relationship setting with drag & drop
+- Management of multiple parent and child tickets
+- Ticket filtering functionality
+- Save and reset changes
+- Unified design with Redmine standard UI
 
-1. プロジェクトメニューから「簡単親子設定」を選択
-2. フィルターで表示するチケットを絞り込み
-3. 左側のチケットを右側の親または子エリアにドラッグ
-4. 「保存」ボタンで変更を確定
+## Installation
 
-## ライセンス
+1. Place the plugin in the plugin directory (`plugins/redmine_easy_parent_child`)
+2. Restart Redmine
+3. Enable the "Easy Parent Child" module in project settings
+
+> **Note**: This plugin only uses Redmine's standard database structure, so no migration is required.
+
+## Usage
+
+1. Select "Easy Parent Child" from the project menu
+2. Filter tickets to display using the filter
+3. Drag tickets from the left side to the parent or child area on the right side
+4. Click the "Save" button to confirm changes
+
+## License
 
 GPL v2
