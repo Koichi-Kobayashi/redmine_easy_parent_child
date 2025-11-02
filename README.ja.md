@@ -49,6 +49,63 @@
 3. 確認ダイアログで操作を確認
 4. 親子関係が切断され、ページがリロードされて更新されたツリー構造が表示されます
 
+## パッケージ化
+
+配布用のZIPファイルを作成するには、プラグインディレクトリで以下のコマンドを実行してください。
+
+### PowerShellスクリプトを使用する場合
+
+```powershell
+.\package.ps1
+```
+
+バージョンを指定する場合:
+
+```powershell
+.\package.ps1 -Version "1.0.0"
+```
+
+出力先を指定する場合:
+
+```powershell
+.\package.ps1 -Version "1.0.0" -OutputDir "..\releases"
+```
+
+### バッチファイルを使用する場合
+
+```cmd
+package.bat
+```
+
+バージョンを指定する場合:
+
+```cmd
+package.bat 1.0.0
+```
+
+出力先を指定する場合:
+
+```cmd
+package.bat 1.0.0 ..\releases
+```
+
+### パッケージ化時の除外ファイル
+
+以下のファイル/ディレクトリは自動的に除外されます:
+
+- `.git/`, `.gitignore`, `.gitattributes`
+- `*.log`, `log/`, `tmp/`
+- `.DS_Store`, `Thumbs.db`
+- `node_modules/`
+- `.vs/`, `.vscode/`, `.idea/`
+- `*.swp`, `*.swo`, `*~`
+- `.env`, `.env.local`
+- `package.ps1`, `package.bat`, `temp_package/`
+
+### 作成されるファイル
+
+- `redmine_easy_parent_child-v{バージョン}.zip` - プラグインのZIPパッケージ
+
 ## ライセンス
 
 GPL v2
