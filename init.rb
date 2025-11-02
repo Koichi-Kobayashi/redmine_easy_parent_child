@@ -20,12 +20,19 @@
 require 'redmine'
 
 Redmine::Plugin.register :redmine_easy_parent_child do
-  name '簡単親子設定'
+  name 'Easy Parent Child'
   author 'Redmine Easy Parent Child Plugin Team'
-  description 'ドラッグ&ドロップでチケットの親子関係を簡単に設定できる機能'
+  description 'Easy parent-child relationship setting with drag & drop'
   version '1.0.0'
   url 'https://github.com/redmine/redmine_easy_parent_child'
   author_url 'https://github.com/redmine'
+  
+  # Load locales
+  if Rails.version >= '5.2'
+    Rails.application.config.i18n.load_path += Dir.glob(File.join(File.dirname(__FILE__), 'config', 'locales', '*.yml'))
+  else
+    I18n.load_path += Dir.glob(File.join(File.dirname(__FILE__), 'config', 'locales', '*.yml'))
+  end
 
   # プラグインの権限を定義
   permission :view_easy_parent_child, {

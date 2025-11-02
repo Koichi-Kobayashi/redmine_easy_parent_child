@@ -1,4 +1,6 @@
 ja:
+  plugin_name: 簡単親子設定
+  plugin_description: ドラッグ&ドロップでチケットの親子関係を簡単に設定できる機能
   label_easy_parent_child: 簡単親子設定
   project_module_easy_parent_child: 簡単親子設定
   text_easy_parent_child_instructions: チケットをドラッグして親子関係を簡単に設定できます。左側のチケットを右側の親または子のエリアにドラッグしてください。
@@ -24,3 +26,21 @@ ja:
   label_limit: 表示件数
   button_apply: 適用
   button_clear: クリア
+  
+  # 追加の翻訳キー
+  label_parent_filter: 親チケット
+  text_displaying_issues: "%{count}件のチケットを表示中"
+  text_children_count: "子: %{count}件"
+  text_parent_label: "親: #%{ids}"
+  text_drag_to_set_relation: ドラッグして親子関係を設定
+  text_drag_instruction: "→ チケットをドラッグして右側のエリアに移動してください"
+  text_drop_instruction: "↓ チケットをここにドロップして親子関係を設定"
+  text_drop_parent_instruction: 親チケットをここにドロップしてください
+  text_drop_child_instruction: 子チケットをここにドロップしてください
+  text_relations_updated: "%{count}件の親子関係を更新しました"
+  error_issue_not_found: "チケットが見つかりません: %{message}"
+  error_general: "エラーが発生しました: %{message}"
+  label_easy_parent_child_filter: 簡単親子設定フィルター
+  text_saving: 保存中...
+  text_reset_confirm: 変更をリセットしますか？
+  error_save_failed: 保存中にエラーが発生しました

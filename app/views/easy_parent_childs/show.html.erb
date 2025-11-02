@@ -43,12 +43,12 @@
           </div>
           
           <div class="filter">
-            <label for="parent_filter">親チケット:</label>
+            <label for="parent_filter"><%= l(:label_parent_filter) %>:</label>
             <%= select_tag :parent_filter, 
                 options_for_select([
-                  ['すべて', ''],
-                  ['親あり', 'with_parent'],
-                  ['親なし', 'without_parent']
+                  [l(:label_all), ''],
+                  [l(:label_with_parent), 'with_parent'],
+                  [l(:label_without_parent), 'without_parent']
                 ], params[:parent_filter]),
                 { :id => 'parent_filter' } %>
           </div>
@@ -79,7 +79,7 @@
       <%= l(:text_easy_parent_child_instructions) %>
       <% if @issues %>
         <span style="color: #666; font-size: 12px;">
-          （<%= @issues.count %>件のチケットを表示中）
+          （<%= l(:text_displaying_issues, count: @issues.count) %>）
         </span>
       <% end %>
     </p>
@@ -101,7 +101,7 @@
   <div id="easy-parent-child-area" style="display: flex; flex-direction: row; gap: 20px; width: 100%;">
     <div id="issues-list" class="issues-column" style="flex: 1; min-width: 300px; max-width: 50%;">
       <h3><%= l(:label_issue_plural) %></h3>
-      <p class="drag-instruction">→ チケットをドラッグして右側のエリアに移動してください</p>
+      <p class="drag-instruction"><%= l(:text_drag_instruction) %></p>
       <div id="issues-container">
         <% if @issues && @issues.any? %>
           <% 
@@ -128,7 +128,7 @@
                    data-issue-id="<%= parent_issue.id %>" 
                    data-issue-subject="<%= h(parent_issue.subject) %>"
                    draggable="true"
-                   title="ドラッグして親子関係を設定"
+                   title="<%= l(:text_drag_to_set_relation) %>"
                    style="cursor: move;">
                 <div class="issue-info">
                   <% if children_tree.any? %>
@@ -142,7 +142,7 @@
                 </div>
                 <% if children_tree.any? %>
                   <div class="children-count">
-                    <span class="status-text">子: <%= children_tree.count %>件</span>
+                    <span class="status-text"><%= l(:text_children_count, count: children_tree.count) %></span>
                   </div>
                 <% end %>
               </div>
@@ -174,7 +174,7 @@
                       </div>
                       <% if grand_children.any? %>
                         <div class="children-count">
-                          <span class="status-text">子: <%= grand_children.count %>件</span>
+                          <span class="status-text"><%= l(:text_children_count, count: grand_children.count) %></span>
                         </div>
                       <% end %>
                     </div>
@@ -206,7 +206,7 @@
                             </div>
                             <% if great_grand_children.any? %>
                               <div class="children-count">
-                                <span class="status-text">子: <%= great_grand_children.count %>件</span>
+                                <span class="status-text"><%= l(:text_children_count, count: great_grand_children.count) %></span>
                               </div>
                             <% end %>
                           </div>
@@ -249,14 +249,14 @@
 
     <div id="relation-area" class="relation-column" style="flex: 1; min-width: 400px; max-width: 50%;">
       <h3><%= l(:label_parent_child_relations) %></h3>
-      <p class="drop-instruction">↓ チケットをここにドロップして親子関係を設定</p>
+      <p class="drop-instruction"><%= l(:text_drop_instruction) %></p>
       <div id="relations-container">
         <div class="drop-zone" id="parent-drop-zone" style="border: 3px dashed #007bff; background-color: #f8f9fa; min-height: 100px; padding: 20px; margin: 10px 0;">
           <div class="drop-zone-label" style="font-weight: bold; text-align: center; font-size: 18px; background-color: #fff; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">
             📋 <%= l(:label_parent_issues) %>
           </div>
           <div class="drop-zone-instruction" style="text-align: center; color: #6c757d; font-style: italic; margin-bottom: 15px; padding: 10px; background-color: #fff; border-radius: 4px; border: 1px solid #dee2e6; font-weight: bold;">
-            親チケットをここにドロップしてください
+            <%= l(:text_drop_parent_instruction) %>
           </div>
           <div class="parent-issues">
             <!-- 親チケットがここに表示される -->
@@ -268,7 +268,7 @@
             📝 <%= l(:label_child_issues) %>
           </div>
           <div class="drop-zone-instruction" style="text-align: center; color: #6c757d; font-style: italic; margin-bottom: 15px; padding: 10px; background-color: #fff; border-radius: 4px; border: 1px solid #dee2e6; font-weight: bold;">
-            子チケットをここにドロップしてください
+            <%= l(:text_drop_child_instruction) %>
           </div>
           <div class="child-issues">
             <!-- 子チケットがここに表示される -->
@@ -946,7 +946,8 @@
             currentRelations[parentId].includes(issueId)
           );
           if (parentIds.length > 0) {
-            parentInfo = `<div class="parent-info">親: #${parentIds.join(', #')}</div>`;
+            const parentLabel = easyParentChildData.i18n.text_parent_label.replace('%{ids}', parentIds.join(', #'));
+            parentInfo = `<div class="parent-info">${parentLabel}</div>`;
           }
         }
         
@@ -1020,15 +1021,16 @@
         const parentInfo = statusDiv.find('.parent-info');
         
         if (parentIds.length > 0) {
+          const parentLabel = easyParentChildData.i18n.text_parent_label.replace('%{ids}', parentIds.join(', #'));
           if (parentInfo.length === 0) {
             statusDiv.prepend(`
               <div class="parent-info">
                 <span class="status-icon">👆</span>
-                <span class="status-text">親: #${parentIds.join(', #')}</span>
+                <span class="status-text">${parentLabel}</span>
               </div>
             `);
           } else {
-            parentInfo.find('.status-text').text(`親: #${parentIds.join(', #')}`);
+            parentInfo.find('.status-text').text(parentLabel);
           }
           childItem.addClass('has-parent');
         } else {
@@ -1076,7 +1078,7 @@
         const saveBtn = $('#save-relations-btn');
         const originalText = saveBtn.text();
         
-        saveBtn.prop('disabled', true).text('保存中...');
+        saveBtn.prop('disabled', true).text(easyParentChildData.i18n.text_saving);
         
         $.ajax({
           url: easyParentChildData.updateUrl,
@@ -1100,7 +1102,7 @@
           },
           error: function(xhr) {
             const response = xhr.responseJSON || {};
-            showMessage(response.message || '保存中にエラーが発生しました', 'error');
+            showMessage(response.message || easyParentChildData.i18n.error_save_failed, 'error');
           },
           complete: function() {
             saveBtn.prop('disabled', false).text(originalText);
@@ -1109,7 +1111,7 @@
       }
       
       function resetRelations() {
-        if (confirm('変更をリセットしますか？')) {
+        if (confirm(easyParentChildData.i18n.text_reset_confirm)) {
           currentRelations = {};
           $('.parent-issues').empty();
           $('.child-issues').empty();
@@ -1201,6 +1203,12 @@
       }
     }.to_json %>,
     relations: <%= raw [] %>,
-    updateUrl: '<%= url_for(:controller => 'easy_parent_childs', :action => 'update_relations', :project_id => @project) %>'
+    updateUrl: '<%= url_for(:controller => 'easy_parent_childs', :action => 'update_relations', :project_id => @project) %>',
+    i18n: {
+      text_saving: '<%= j(l(:text_saving)) %>',
+      text_reset_confirm: '<%= j(l(:text_reset_confirm)) %>',
+      error_save_failed: '<%= j(l(:error_save_failed)) %>',
+      text_parent_label: '<%= j(l(:text_parent_label)) %>'
+    }
   };
 <% end %>

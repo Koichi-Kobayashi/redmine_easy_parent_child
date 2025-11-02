@@ -1,0 +1,47 @@
+en:
+  plugin_name: Easy Parent Child
+  plugin_description: Easy parent-child relationship setting with drag & drop
+  label_easy_parent_child: Easy Parent Child
+  project_module_easy_parent_child: Easy Parent Child
+  text_easy_parent_child_instructions: You can easily set parent-child relationships by dragging tickets. Drag tickets from the left side to the parent or child area on the right side.
+  text_unsaved_changes: You have unsaved changes
+  text_no_issues: No tickets
+  label_parent_child_relations: Parent-Child Relations
+  label_parent_issues: Parent Tickets
+  label_child_issues: Child Tickets
+  button_reset: Reset
+  
+  # Filter related translations
+  label_filter_plural: Filters
+  field_status: Status
+  field_tracker: Tracker
+  field_assigned_to: Assigned To
+  field_priority: Priority
+  field_subject: Subject
+  field_parent: Parent Ticket
+  label_all: All
+  label_search: Search
+  label_with_parent: With Parent
+  label_without_parent: Without Parent
+  label_limit: Limit
+  button_apply: Apply
+  button_clear: Clear
+  
+  # Additional translation keys
+  label_parent_filter: Parent Ticket
+  text_displaying_issues: "Displaying %{count} tickets"
+  text_children_count: "Children: %{count}"
+  text_parent_label: "Parent: #%{ids}"
+  text_drag_to_set_relation: Drag to set parent-child relation
+  text_drag_instruction: → Drag tickets to the area on the right
+  text_drop_instruction: ↓ Drop tickets here to set parent-child relations
+  text_drop_parent_instruction: Drop parent tickets here
+  text_drop_child_instruction: Drop child tickets here
+  text_relations_updated: "%{count} parent-child relations updated"
+  error_issue_not_found: "Ticket not found: %{message}"
+  error_general: "An error occurred: %{message}"
+  label_easy_parent_child_filter: Easy Parent Child Filter
+  text_saving: Saving...
+  text_reset_confirm: Do you want to reset the changes?
+  error_save_failed: An error occurred while saving
+

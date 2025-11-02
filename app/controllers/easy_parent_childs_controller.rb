@@ -119,19 +119,19 @@ class EasyParentChildsController < ApplicationController
       
       render json: { 
         success: true, 
-        message: "#{updated_count}件の親子関係を更新しました",
+        message: l(:text_relations_updated, count: updated_count),
         updated_count: updated_count
       }
       
     rescue ActiveRecord::RecordNotFound => e
       render json: { 
         success: false, 
-        message: "チケットが見つかりません: #{e.message}" 
+        message: l(:error_issue_not_found, message: e.message) 
       }, status: 404
     rescue => e
       render json: { 
         success: false, 
-        message: "エラーが発生しました: #{e.message}" 
+        message: l(:error_general, message: e.message) 
       }, status: 500
     end
   end
@@ -141,7 +141,7 @@ class EasyParentChildsController < ApplicationController
   def build_easy_parent_child_query
     query = IssueQuery.new
     query.project = @project
-    query.name = '簡単親子設定フィルター'
+    query.name = l(:label_easy_parent_child_filter)
     query.visibility = Query::VISIBILITY_PRIVATE
     query.user = User.current
     
