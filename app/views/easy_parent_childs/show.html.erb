@@ -104,56 +104,141 @@
       <p class="drag-instruction">→ チケットをドラッグして右側のエリアに移動してください</p>
       <div id="issues-container">
         <% if @issues && @issues.any? %>
-          <% @issues.each do |issue| %>
-            <% children_list = @issues_with_children[issue.id] || [] %>
-            <% has_children = children_list.any? %>
-            <div class="issue-item <%= 'has-parent' if issue.parent.present? %><%= ' has-children' if has_children %><%= ' has-both-relations' if issue.parent.present? && has_children %>" 
-                 data-issue-id="<%= issue.id %>" 
-                 data-issue-subject="<%= h(issue.subject) %>"
-                 draggable="true"
-                 title="ドラッグして親子関係を設定"
-                 style="cursor: move;">
-              <div class="issue-info">
-                <span class="issue-id">#<%= issue.id %></span>
-                <span class="issue-subject"><%= h(issue.subject) %></span>
-                <span class="issue-status"><%= issue.status.name %></span>
-              </div>
-              
-              <!-- 親子関係の状態表示 -->
-              <div class="parent-child-status">
-                <% if issue.parent.present? %>
-                  <div class="parent-info">
-                    <span class="status-icon">👆</span>
-                    <span class="status-text">親: #<%= issue.parent.id %> <%= h(issue.parent.subject) %></span>
+          <% 
+            # 親チケットと子チケットを分離
+            parent_issues = @issues.select { |issue| issue.parent_id.nil? }
+            child_issues_map = @issues.select { |issue| issue.parent_id.present? }.group_by { |issue| issue.parent_id }
+            
+            # 再帰的に階層を構築
+            def build_tree(issue_id, child_issues_map)
+              children = child_issues_map[issue_id] || []
+              children.map do |child|
+                {
+                  issue: child,
+                  children: build_tree(child.id, child_issues_map)
+                }
+              end
+            end
+          %>
+          <% parent_issues.each do |parent_issue| %>
+            <% children_tree = build_tree(parent_issue.id, child_issues_map) %>
+            <div class="issue-tree">
+              <!-- 親チケット -->
+              <div class="issue-item issue-parent <%= 'has-children' if children_tree.any? %>" 
+                   data-issue-id="<%= parent_issue.id %>" 
+                   data-issue-subject="<%= h(parent_issue.subject) %>"
+                   draggable="true"
+                   title="ドラッグして親子関係を設定"
+                   style="cursor: move;">
+                <div class="issue-info">
+                  <% if children_tree.any? %>
+                    <span class="tree-toggle" data-parent-id="<%= parent_issue.id %>">▼</span>
+                  <% else %>
+                    <span class="tree-toggle-placeholder"></span>
+                  <% end %>
+                  <span class="issue-id">#<%= parent_issue.id %></span>
+                  <span class="issue-subject"><%= h(parent_issue.subject) %></span>
+                  <span class="issue-status"><%= parent_issue.status.name %></span>
+                </div>
+                <% if children_tree.any? %>
+                  <div class="children-count">
+                    <span class="status-text">子: <%= children_tree.count %>件</span>
                   </div>
                 <% end %>
-                
-                <% if has_children %>
-                  <div class="children-info">
-                    <span class="status-icon">👇</span>
-                    <span class="status-text">子: <%= children_list.count %>件</span>
-                    <div class="children-list">
-                      <% children_list.first(3).each do |child| %>
-                        <span class="child-item">#<%= child.id %></span>
-                      <% end %>
-                      <% if children_list.count > 3 %>
-                        <span class="child-item">...</span>
+              </div>
+              
+              <!-- 子チケット（再帰的に表示） -->
+              <% if children_tree.any? %>
+                <div class="issue-children-tree" data-parent-id="<%= parent_issue.id %>" style="display: block;">
+                  <% children_tree.each do |child_node| %>
+                    <% 
+                      child_issue = child_node[:issue]
+                      grand_children = child_node[:children]
+                    %>
+                    <div class="issue-item issue-child <%= 'has-children' if grand_children.any? %>" 
+                         data-issue-id="<%= child_issue.id %>" 
+                         data-issue-subject="<%= h(child_issue.subject) %>"
+                         draggable="true"
+                         title="ドラッグして親子関係を設定"
+                         style="cursor: move; margin-left: 30px;">
+                      <div class="issue-info">
+                        <% if grand_children.any? %>
+                          <span class="tree-toggle" data-parent-id="<%= child_issue.id %>">▼</span>
+                        <% else %>
+                          <span class="tree-toggle-placeholder"></span>
+                        <% end %>
+                        <span class="tree-indent">└─</span>
+                        <span class="issue-id">#<%= child_issue.id %></span>
+                        <span class="issue-subject"><%= h(child_issue.subject) %></span>
+                        <span class="issue-status"><%= child_issue.status.name %></span>
+                      </div>
+                      <% if grand_children.any? %>
+                        <div class="children-count">
+                          <span class="status-text">子: <%= grand_children.count %>件</span>
+                        </div>
                       <% end %>
                     </div>
-                  </div>
-                <% end %>
-                
-                <% if issue.parent.blank? && !has_children %>
-                  <div class="no-relation-info">
-                    <span class="status-icon">🔗</span>
-                    <span class="status-text">関係なし</span>
-                  </div>
-                <% end %>
-              </div>
-              
-              <div class="issue-children" data-parent-id="<%= issue.id %>">
-                <!-- 子チケットがここに表示される -->
-              </div>
+                    
+                    <!-- 孫チケット（3階層目） -->
+                    <% if grand_children.any? %>
+                      <div class="issue-children-tree" data-parent-id="<%= child_issue.id %>" style="display: block;">
+                        <% grand_children.each do |grand_child_node| %>
+                          <% 
+                            grand_child_issue = grand_child_node[:issue]
+                            great_grand_children = grand_child_node[:children]
+                          %>
+                          <div class="issue-item issue-child <%= 'has-children' if great_grand_children.any? %>" 
+                               data-issue-id="<%= grand_child_issue.id %>" 
+                               data-issue-subject="<%= h(grand_child_issue.subject) %>"
+                               draggable="true"
+                               title="ドラッグして親子関係を設定"
+                               style="cursor: move; margin-left: 60px;">
+                            <div class="issue-info">
+                              <% if great_grand_children.any? %>
+                                <span class="tree-toggle" data-parent-id="<%= grand_child_issue.id %>">▼</span>
+                              <% else %>
+                                <span class="tree-toggle-placeholder"></span>
+                              <% end %>
+                              <span class="tree-indent">  └─</span>
+                              <span class="issue-id">#<%= grand_child_issue.id %></span>
+                              <span class="issue-subject"><%= h(grand_child_issue.subject) %></span>
+                              <span class="issue-status"><%= grand_child_issue.status.name %></span>
+                            </div>
+                            <% if great_grand_children.any? %>
+                              <div class="children-count">
+                                <span class="status-text">子: <%= great_grand_children.count %>件</span>
+                              </div>
+                            <% end %>
+                          </div>
+                          
+                          <!-- 4階層目以降も同様に（必要に応じて拡張） -->
+                          <% if great_grand_children.any? %>
+                            <div class="issue-children-tree" data-parent-id="<%= grand_child_issue.id %>" style="display: block; margin-left: 30px;">
+                              <% great_grand_children.each do |ggc_node| %>
+                                <% ggc_issue = ggc_node[:issue] %>
+                                <div class="issue-item issue-child" 
+                                     data-issue-id="<%= ggc_issue.id %>" 
+                                     data-issue-subject="<%= h(ggc_issue.subject) %>"
+                                     draggable="true"
+                                     title="ドラッグして親子関係を設定"
+                                     style="cursor: move; margin-left: 90px;">
+                                  <div class="issue-info">
+                                    <span class="tree-toggle-placeholder"></span>
+                                    <span class="tree-indent">    └─</span>
+                                    <span class="issue-id">#<%= ggc_issue.id %></span>
+                                    <span class="issue-subject"><%= h(ggc_issue.subject) %></span>
+                                    <span class="issue-status"><%= ggc_issue.status.name %></span>
+                                  </div>
+                                </div>
+                              <% end %>
+                            </div>
+                          <% end %>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  <% end %>
+                </div>
+              <% end %>
             </div>
           <% end %>
         <% else %>
@@ -291,6 +376,11 @@
       padding: 10px;
     }
     
+    /* ツリービュー用のスタイル */
+    .issue-tree {
+      margin-bottom: 8px;
+    }
+    
     .issue-item {
       padding: 10px;
       margin: 5px 0;
@@ -303,8 +393,20 @@
       opacity: 1 !important;
     }
     
-    .issue-item:hover {
+    .issue-item.issue-parent {
       background-color: #f8f9fa;
+      border-left: 4px solid #28a745;
+      font-weight: 500;
+    }
+    
+    .issue-item.issue-child {
+      background-color: #fff;
+      border-left: 4px solid #ffc107;
+      margin-left: 30px;
+    }
+    
+    .issue-item:hover {
+      background-color: #f0f0f0;
       border-color: #007bff;
       transform: translateX(5px);
     }
@@ -319,7 +421,49 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 8px;
+    }
+    
+    .tree-toggle {
+      cursor: pointer;
+      font-size: 12px;
+      color: #6c757d;
+      width: 20px;
+      display: inline-block;
+      text-align: center;
+      user-select: none;
+    }
+    
+    .tree-toggle:hover {
+      color: #007bff;
+    }
+    
+    .tree-toggle-placeholder {
+      width: 20px;
+      display: inline-block;
+    }
+    
+    .tree-indent {
+      color: #6c757d;
+      font-size: 14px;
+      margin-right: 5px;
+      width: 25px;
+      display: inline-block;
+    }
+    
+    .issue-children-tree {
+      margin-left: 20px;
+      margin-bottom: 10px;
+    }
+    
+    .issue-children-tree.collapsed {
+      display: none !important;
+    }
+    
+    .children-count {
+      font-size: 12px;
+      color: #6c757d;
+      margin-top: 5px;
+      padding-left: 30px;
     }
     
     .issue-id {
@@ -612,8 +756,29 @@
       // Setup reset button
       $('#reset-relations-btn').on('click', resetRelations);
       
+      // Setup tree toggle functionality
+      setupTreeToggle();
+      
       // Initialize status
       updateStatus();
+      
+      function setupTreeToggle() {
+        // Tree toggle functionality
+        $(document).on('click', '.tree-toggle', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const parentId = $(this).data('parent-id');
+          const childrenTree = $(`.issue-children-tree[data-parent-id="${parentId}"]`);
+          
+          if (childrenTree.hasClass('collapsed')) {
+            childrenTree.removeClass('collapsed');
+            $(this).text('▼');
+          } else {
+            childrenTree.addClass('collapsed');
+            $(this).text('▶');
+          }
+        });
+      }
       
       function initializeDragAndDrop() {
         console.log('Setting up drag and drop...');
@@ -925,6 +1090,10 @@
               showMessage(response.message, 'success');
               hasUnsavedChanges = false;
               updateStatus();
+              // 保存成功後にページをリロードしてツリー表示を更新
+              setTimeout(function() {
+                window.location.reload();
+              }, 1000); // メッセージを表示してから1秒後にリロード
             } else {
               showMessage(response.message, 'error');
             }

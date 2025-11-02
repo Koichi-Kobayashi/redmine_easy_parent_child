@@ -61,8 +61,14 @@ class EasyParentChildsController < ApplicationController
       relations_data.each do |parent_id, children_ids|
         parent_issue = Issue.find(parent_id)
         
-        # 既存の子チケットのparent_idをクリア
-        Issue.where(parent_id: parent_id).update_all(parent_id: nil)
+        # 既存の子チケットのparent_idをクリア（ただし、新しい子チケットリストに含まれるものは除外）
+        existing_children = Issue.where(parent_id: parent_id)
+        existing_children.each do |existing_child|
+          unless children_ids.map(&:to_s).include?(existing_child.id.to_s)
+            existing_child.parent_id = nil
+            existing_child.save
+          end
+        end
         
         # 新しい子チケット関係を作成
         children_ids.each do |child_id|
@@ -71,8 +77,36 @@ class EasyParentChildsController < ApplicationController
           child_issue = Issue.find(child_id)
           
           # 循環参照をチェック
+          # 1. 自分自身を子にしようとする場合
+          # 2. 子の子孫に親が含まれている場合（親が子の子孫になろうとする場合）
+          # 3. 親が既に親を持っている場合、親の親（または親の祖先）が子になろうとする場合
           if child_issue.id == parent_issue.id || 
              child_issue.descendants.include?(parent_issue)
+            next
+          end
+          
+          # 親が既に親を持っている場合、親の祖先が子になろうとする場合をチェック
+          has_circular_reference = false
+          if parent_issue.parent_id.present?
+            # 親の親が直接子になろうとする場合
+            if child_issue.id == parent_issue.parent_id
+              has_circular_reference = true
+            else
+              # 親の親の子孫が子になろうとする場合をチェック（再帰的にチェック）
+              current_parent = parent_issue.parent
+              while current_parent.present? && !has_circular_reference
+                if child_issue.id == current_parent.id || 
+                   child_issue.descendants.include?(current_parent)
+                  has_circular_reference = true
+                  break
+                end
+                current_parent = current_parent.parent
+              end
+            end
+          end
+          
+          # 循環参照が見つかった場合はスキップ
+          if has_circular_reference
             next
           end
           
