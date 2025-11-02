@@ -125,6 +125,7 @@
               issue = node[:issue]
               children = node[:children] || []
               has_children = children.any?
+              has_parent = issue.parent_id.present?
               
               # インデント計算（各階層30px）
               margin_left = depth * 30
@@ -134,8 +135,9 @@
               html << %(<div class="issue-item #{is_root ? 'issue-parent' : 'issue-child'} #{'has-children' if has_children}" )
               html << %(data-issue-id="#{issue.id}" )
               html << %(data-issue-subject="#{h(issue.subject)}" )
+              html << %(data-parent-id="#{issue.parent_id}" )
               html << %(draggable="true" )
-              html << %(title="ドラッグして親子関係を設定" )
+              html << %(title="#{l(:text_drag_to_set_relation)}" )
               html << %(style="cursor: move; margin-left: #{margin_left}px;">)
               html << %(<div class="issue-info">)
               
@@ -152,6 +154,12 @@
               html << %(<span class="issue-id">##{issue.id}</span>)
               html << %(<span class="issue-subject">#{h(issue.subject)}</span>)
               html << %(<span class="issue-status">#{issue.status.name}</span>)
+              
+              # 親を持っている子チケットに切断ボタンを追加
+              if has_parent && !is_root
+                html << %(<button class="disconnect-btn" onclick="disconnectParentRelation(#{issue.id}); event.stopPropagation();" title="#{l(:text_disconnect_relation)}" style="margin-left: 10px; padding: 2px 8px; font-size: 11px; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;">#{l(:button_disconnect)}</button>)
+              end
+              
               html << %(</div>)
               
               if has_children
@@ -181,6 +189,7 @@
               <div class="issue-item issue-parent <%= 'has-children' if children_tree.any? %>" 
                    data-issue-id="<%= parent_issue.id %>" 
                    data-issue-subject="<%= h(parent_issue.subject) %>"
+                   data-parent-id="<%= parent_issue.parent_id %>"
                    draggable="true"
                    title="<%= l(:text_drag_to_set_relation) %>"
                    style="cursor: move;">
@@ -193,6 +202,9 @@
                   <span class="issue-id">#<%= parent_issue.id %></span>
                   <span class="issue-subject"><%= h(parent_issue.subject) %></span>
                   <span class="issue-status"><%= parent_issue.status.name %></span>
+                  <% if parent_issue.parent_id.present? %>
+                    <button class="disconnect-btn" onclick="disconnectParentRelation(<%= parent_issue.id %>); event.stopPropagation();" title="<%= l(:text_disconnect_relation) %>" style="margin-left: 10px; padding: 2px 8px; font-size: 11px; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;"><%= l(:button_disconnect) %></button>
+                  <% end %>
                 </div>
                 <% if children_tree.any? %>
                   <div class="children-count">
@@ -624,6 +636,26 @@
     
     .remove-btn:hover {
       color: #a71e2a;
+    }
+    
+    .disconnect-btn {
+      margin-left: 10px;
+      padding: 2px 8px;
+      font-size: 11px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    
+    .disconnect-btn:hover {
+      background-color: #a71e2a;
+    }
+    
+    .disconnect-btn:active {
+      background-color: #8b1a20;
     }
     
     .alert {
@@ -1149,6 +1181,58 @@
         
         markAsChanged();
       };
+      
+      // Global function for disconnecting parent relation
+      window.disconnectParentRelation = function(issueId) {
+        if (!confirm(easyParentChildData.i18n.text_disconnect_confirm)) {
+          return;
+        }
+        
+        const issueItem = $(`.issue-item[data-issue-id="${issueId}"]`);
+        const parentId = issueItem.data('parent-id');
+        
+        if (!parentId) {
+          showMessage(easyParentChildData.i18n.error_no_parent_relation, 'error');
+          return;
+        }
+        
+        // 親子関係を切断するAPIリクエストを送信
+        $.ajax({
+          url: easyParentChildData.disconnectUrl,
+          method: 'POST',
+          data: {
+            issue_id: issueId,
+            authenticity_token: $('meta[name="csrf-token"]').attr('content')
+          },
+          success: function(response) {
+            if (response.success) {
+              showMessage(response.message || easyParentChildData.i18n.text_relation_disconnected_success, 'success');
+              
+              // 親の子リストから削除
+              Object.keys(currentRelations).forEach(parentId => {
+                currentRelations[parentId] = currentRelations[parentId].filter(childId => childId !== issueId);
+                if (currentRelations[parentId].length === 0) {
+                  delete currentRelations[parentId];
+                }
+              });
+              
+              // ドロップゾーンからも削除
+              removeIssueFromAllZones(issueId);
+              
+              // ツリー表示を更新するためにページをリロード
+              setTimeout(function() {
+                window.location.reload();
+              }, 1000);
+            } else {
+              showMessage(response.message || easyParentChildData.i18n.error_disconnect_failed, 'error');
+            }
+          },
+          error: function(xhr) {
+            const response = xhr.responseJSON || {};
+            showMessage(response.message || easyParentChildData.i18n.error_disconnect_failed, 'error');
+          }
+        });
+      };
     }
   </script>
 <% end %>
@@ -1174,11 +1258,16 @@
     }.to_json %>,
     relations: <%= raw [] %>,
     updateUrl: '<%= url_for(:controller => 'easy_parent_childs', :action => 'update_relations', :project_id => @project) %>',
+    disconnectUrl: '<%= url_for(:controller => 'easy_parent_childs', :action => 'disconnect_relation', :project_id => @project) %>',
     i18n: {
       text_saving: '<%= j(l(:text_saving)) %>',
       text_reset_confirm: '<%= j(l(:text_reset_confirm)) %>',
       error_save_failed: '<%= j(l(:error_save_failed)) %>',
-      text_parent_label: '<%= j(l(:text_parent_label)) %>'
+      text_parent_label: '<%= j(l(:text_parent_label)) %>',
+      text_disconnect_confirm: '<%= j(l(:text_disconnect_confirm)) %>',
+      error_no_parent_relation: '<%= j(l(:error_no_parent_relation)) %>',
+      text_relation_disconnected_success: '<%= j(l(:text_relation_disconnected_success)) %>',
+      error_disconnect_failed: '<%= j(l(:error_disconnect_failed)) %>'
     }
   };
 <% end %>

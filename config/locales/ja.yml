@@ -44,3 +44,14 @@ ja:
   text_saving: 保存中...
   text_reset_confirm: 変更をリセットしますか？
   error_save_failed: 保存中にエラーが発生しました
+  
+  # 親子関係切断関連の翻訳
+  button_disconnect: 切断
+  text_disconnect_relation: 親子関係を切断（このチケットとその子孫が独立したツリーになります）
+  text_disconnect_confirm: 親子関係を切断しますか？このチケットとその子孫が独立したツリーとして分離されます。
+  text_relation_disconnected: "チケット #%{issue_id} の親子関係を切断しました（親: #%{parent_id}）"
+  text_relation_disconnected_with_descendants: "チケット #%{issue_id} の親子関係を切断しました（親: #%{parent_id}）。このチケットとその子孫 %{count} 件が独立したツリーとして分離されました。"
+  text_relation_disconnected_success: 親子関係を切断しました
+  error_no_parent_relation: このチケットには親がありません
+  error_failed_to_disconnect: "親子関係の切断に失敗しました: %{errors}"
+  error_disconnect_failed: 親子関係の切断に失敗しました

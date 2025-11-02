@@ -36,7 +36,7 @@ Redmine::Plugin.register :redmine_easy_parent_child do
 
   # プラグインの権限を定義
   permission :view_easy_parent_child, {
-    :easy_parent_childs => [:show, :update_relations]
+    :easy_parent_childs => [:show, :update_relations, :disconnect_relation]
   }, :read => true
 
   # プロジェクトメニューに追加
@@ -50,7 +50,7 @@ Redmine::Plugin.register :redmine_easy_parent_child do
   # 独立したプロジェクトモジュールとして登録
   project_module :easy_parent_child do
     permission :view_easy_parent_child, {
-      :easy_parent_childs => [:show, :update_relations]
+      :easy_parent_childs => [:show, :update_relations, :disconnect_relation]
     }, :read => true
   end
 end

@@ -147,6 +147,72 @@ class EasyParentChildsController < ApplicationController
     end
   end
 
+  def disconnect_relation
+    authorize
+    
+    begin
+      issue_id = params[:issue_id]
+      
+      if issue_id.blank?
+        render json: { 
+          success: false, 
+          message: l(:error_issue_not_found, message: 'Issue ID is required') 
+        }, status: 400
+        return
+      end
+      
+      issue = Issue.find(issue_id)
+      
+      unless issue.parent_id.present?
+        render json: { 
+          success: false, 
+          message: l(:error_no_parent_relation) 
+        }, status: 400
+        return
+      end
+      
+      # 親子関係を切断
+      # このチケットとその子孫（すべての子孫チケット）が独立したツリーとして分離されます
+      # 例: A-B-C-D-E の場合、Cで切断すると A-B と C-D-E に分かれます
+      parent_id = issue.parent_id
+      issue.parent_id = nil
+      
+      if issue.save
+        # 子孫の数を取得してメッセージに含める
+        # 保存後に再取得して最新の状態を取得
+        issue.reload
+        descendant_ids = collect_all_descendants([issue.id])
+        descendant_count = descendant_ids.count
+        message = if descendant_count > 0
+          l(:text_relation_disconnected_with_descendants, issue_id: issue_id, parent_id: parent_id, count: descendant_count)
+        else
+          l(:text_relation_disconnected, issue_id: issue_id, parent_id: parent_id)
+        end
+        
+        render json: { 
+          success: true, 
+          message: message
+        }
+      else
+        render json: { 
+          success: false, 
+          message: l(:error_failed_to_disconnect, errors: issue.errors.full_messages.join(', ')) 
+        }, status: 422
+      end
+      
+    rescue ActiveRecord::RecordNotFound => e
+      render json: { 
+        success: false, 
+        message: l(:error_issue_not_found, message: e.message) 
+      }, status: 404
+    rescue => e
+      render json: { 
+        success: false, 
+        message: l(:error_general, message: e.message) 
+      }, status: 500
+    end
+  end
+
   private
 
   # @issuesに含まれるチケットの全子孫を再帰的に取得

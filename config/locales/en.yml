@@ -44,4 +44,15 @@ en:
   text_saving: Saving...
   text_reset_confirm: Do you want to reset the changes?
   error_save_failed: An error occurred while saving
+  
+  # Disconnect relation related translations
+  button_disconnect: Disconnect
+  text_disconnect_relation: Disconnect parent-child relation (This ticket and its descendants will become an independent tree)
+  text_disconnect_confirm: Do you want to disconnect the parent-child relation? This ticket and its descendants will be separated as an independent tree.
+  text_relation_disconnected: "Disconnected parent-child relation for ticket #%{issue_id} (Parent: #%{parent_id})"
+  text_relation_disconnected_with_descendants: "Disconnected parent-child relation for ticket #%{issue_id} (Parent: #%{parent_id}). This ticket and %{count} descendant(s) have been separated as an independent tree."
+  text_relation_disconnected_success: Parent-child relation disconnected
+  error_no_parent_relation: This ticket has no parent
+  error_failed_to_disconnect: "Failed to disconnect relation: %{errors}"
+  error_disconnect_failed: Failed to disconnect parent-child relation
 
