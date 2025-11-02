@@ -35,6 +35,17 @@ class EasyParentChildsController < ApplicationController
     @query = build_easy_parent_child_query
     @issues = find_filtered_issues
     
+    # @issuesに含まれるチケットの全子孫を再帰的に取得して追加
+    all_descendants = collect_all_descendants(@issues.map(&:id))
+    if all_descendants.any?
+      descendant_issues = Issue.where(id: all_descendants)
+        .includes(:status, :tracker, :assigned_to, :priority, :category, :fixed_version, :parent)
+      # 既存の@issuesとマージ（重複を避ける）
+      existing_ids = @issues.map(&:id).to_set
+      new_issues = descendant_issues.reject { |issue| existing_ids.include?(issue.id) }
+      @issues = (@issues.to_a + new_issues.to_a).uniq
+    end
+    
     # 各チケットの子チケット情報を事前に取得
     @issues_with_children = {}
     @issues.each do |issue|
@@ -137,6 +148,19 @@ class EasyParentChildsController < ApplicationController
   end
 
   private
+
+  # @issuesに含まれるチケットの全子孫を再帰的に取得
+  def collect_all_descendants(issue_ids)
+    return [] if issue_ids.empty?
+    
+    # 直接の子を取得
+    children_ids = Issue.where(parent_id: issue_ids).pluck(:id)
+    return [] if children_ids.empty?
+    
+    # 子孫を再帰的に取得
+    descendant_ids = children_ids + collect_all_descendants(children_ids)
+    descendant_ids.uniq
+  end
 
   def build_easy_parent_child_query
     query = IssueQuery.new

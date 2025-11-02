@@ -119,6 +119,60 @@
                 }
               end
             end
+            
+            # 再帰的にツリーを表示（任意の深さに対応）
+            def render_tree_node(node, depth = 0, is_root = false)
+              issue = node[:issue]
+              children = node[:children] || []
+              has_children = children.any?
+              
+              # インデント計算（各階層30px）
+              margin_left = depth * 30
+              indent_str = "  " * depth + "└─"
+              
+              html = ""
+              html << %(<div class="issue-item #{is_root ? 'issue-parent' : 'issue-child'} #{'has-children' if has_children}" )
+              html << %(data-issue-id="#{issue.id}" )
+              html << %(data-issue-subject="#{h(issue.subject)}" )
+              html << %(draggable="true" )
+              html << %(title="ドラッグして親子関係を設定" )
+              html << %(style="cursor: move; margin-left: #{margin_left}px;">)
+              html << %(<div class="issue-info">)
+              
+              if has_children
+                html << %(<span class="tree-toggle" data-parent-id="#{issue.id}">▼</span>)
+              else
+                html << %(<span class="tree-toggle-placeholder"></span>)
+              end
+              
+              unless is_root
+                html << %(<span class="tree-indent">#{indent_str}</span>)
+              end
+              
+              html << %(<span class="issue-id">##{issue.id}</span>)
+              html << %(<span class="issue-subject">#{h(issue.subject)}</span>)
+              html << %(<span class="issue-status">#{issue.status.name}</span>)
+              html << %(</div>)
+              
+              if has_children
+                html << %(<div class="children-count">)
+                html << %(<span class="status-text">#{l(:text_children_count, count: children.count)}</span>)
+                html << %(</div>)
+              end
+              
+              html << %(</div>)
+              
+              # 子チケットを再帰的に表示
+              if has_children
+                html << %(<div class="issue-children-tree" data-parent-id="#{issue.id}" style="display: block;">)
+                children.each do |child_node|
+                  html << render_tree_node(child_node, depth + 1, false)
+                end
+                html << %(</div>)
+              end
+              
+              html
+            end
           %>
           <% parent_issues.each do |parent_issue| %>
             <% children_tree = build_tree(parent_issue.id, child_issues_map) %>
@@ -151,91 +205,7 @@
               <% if children_tree.any? %>
                 <div class="issue-children-tree" data-parent-id="<%= parent_issue.id %>" style="display: block;">
                   <% children_tree.each do |child_node| %>
-                    <% 
-                      child_issue = child_node[:issue]
-                      grand_children = child_node[:children]
-                    %>
-                    <div class="issue-item issue-child <%= 'has-children' if grand_children.any? %>" 
-                         data-issue-id="<%= child_issue.id %>" 
-                         data-issue-subject="<%= h(child_issue.subject) %>"
-                         draggable="true"
-                         title="ドラッグして親子関係を設定"
-                         style="cursor: move; margin-left: 30px;">
-                      <div class="issue-info">
-                        <% if grand_children.any? %>
-                          <span class="tree-toggle" data-parent-id="<%= child_issue.id %>">▼</span>
-                        <% else %>
-                          <span class="tree-toggle-placeholder"></span>
-                        <% end %>
-                        <span class="tree-indent">└─</span>
-                        <span class="issue-id">#<%= child_issue.id %></span>
-                        <span class="issue-subject"><%= h(child_issue.subject) %></span>
-                        <span class="issue-status"><%= child_issue.status.name %></span>
-                      </div>
-                      <% if grand_children.any? %>
-                        <div class="children-count">
-                          <span class="status-text"><%= l(:text_children_count, count: grand_children.count) %></span>
-                        </div>
-                      <% end %>
-                    </div>
-                    
-                    <!-- 孫チケット（3階層目） -->
-                    <% if grand_children.any? %>
-                      <div class="issue-children-tree" data-parent-id="<%= child_issue.id %>" style="display: block;">
-                        <% grand_children.each do |grand_child_node| %>
-                          <% 
-                            grand_child_issue = grand_child_node[:issue]
-                            great_grand_children = grand_child_node[:children]
-                          %>
-                          <div class="issue-item issue-child <%= 'has-children' if great_grand_children.any? %>" 
-                               data-issue-id="<%= grand_child_issue.id %>" 
-                               data-issue-subject="<%= h(grand_child_issue.subject) %>"
-                               draggable="true"
-                               title="ドラッグして親子関係を設定"
-                               style="cursor: move; margin-left: 60px;">
-                            <div class="issue-info">
-                              <% if great_grand_children.any? %>
-                                <span class="tree-toggle" data-parent-id="<%= grand_child_issue.id %>">▼</span>
-                              <% else %>
-                                <span class="tree-toggle-placeholder"></span>
-                              <% end %>
-                              <span class="tree-indent">  └─</span>
-                              <span class="issue-id">#<%= grand_child_issue.id %></span>
-                              <span class="issue-subject"><%= h(grand_child_issue.subject) %></span>
-                              <span class="issue-status"><%= grand_child_issue.status.name %></span>
-                            </div>
-                            <% if great_grand_children.any? %>
-                              <div class="children-count">
-                                <span class="status-text"><%= l(:text_children_count, count: great_grand_children.count) %></span>
-                              </div>
-                            <% end %>
-                          </div>
-                          
-                          <!-- 4階層目以降も同様に（必要に応じて拡張） -->
-                          <% if great_grand_children.any? %>
-                            <div class="issue-children-tree" data-parent-id="<%= grand_child_issue.id %>" style="display: block; margin-left: 30px;">
-                              <% great_grand_children.each do |ggc_node| %>
-                                <% ggc_issue = ggc_node[:issue] %>
-                                <div class="issue-item issue-child" 
-                                     data-issue-id="<%= ggc_issue.id %>" 
-                                     data-issue-subject="<%= h(ggc_issue.subject) %>"
-                                     draggable="true"
-                                     title="ドラッグして親子関係を設定"
-                                     style="cursor: move; margin-left: 90px;">
-                                  <div class="issue-info">
-                                    <span class="tree-toggle-placeholder"></span>
-                                    <span class="tree-indent">    └─</span>
-                                    <span class="issue-id">#<%= ggc_issue.id %></span>
-                                    <span class="issue-subject"><%= h(ggc_issue.subject) %></span>
-                                    <span class="issue-status"><%= ggc_issue.status.name %></span>
-                                  </div>
-                                </div>
-                              <% end %>
-                            </div>
-                          <% end %>
-                        <% end %>
-                      </div>
-                    <% end %>
+                    <%= render_tree_node(child_node, 1, false).html_safe %>
                   <% end %>
                 </div>
               <% end %>
